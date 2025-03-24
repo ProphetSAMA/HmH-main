@@ -77,6 +77,7 @@
       localStorage.setItem('currentUser', JSON.stringify({
         id: result.userId,
         userName: result.userName,
+        trueName: result.trueName,
         roleName: result.roleName
       }))
       

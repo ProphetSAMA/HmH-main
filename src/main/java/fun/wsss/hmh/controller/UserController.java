@@ -69,6 +69,7 @@ public class UserController {
                 .withClaim("userId", resultUser.getId())
                 .withClaim("userName", resultUser.getUserName())
                 .withClaim("roleName", resultUser.getRoleName())
+                .withClaim("trueName", resultUser.getTrueName())
                 .withExpiresAt(new Date(System.currentTimeMillis() + 24 * 60 * 60 * 1000)) // 24小时过期
                 .sign(Algorithm.HMAC256(SECRET_KEY));
 
@@ -79,6 +80,7 @@ public class UserController {
         response.put("userId", resultUser.getId());
         response.put("userName", resultUser.getUserName());
         response.put("roleName", resultUser.getRoleName());
+        response.put("trueName", resultUser.getTrueName());
         return ResponseEntity.ok(response);
     }
 

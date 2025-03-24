@@ -47,6 +47,12 @@ const routes = [
         component: () => import('../views/Stats.vue'),
         meta: { requiresAuth: true }
       },
+      {
+        path: 'edit',
+        name: 'Edit',
+        component: () => import('../views/Edit.vue'),
+        meta: { requiresAuth: true }
+      },
       // 成员管理
       {
         path: 'member',

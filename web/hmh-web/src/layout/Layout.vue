@@ -28,14 +28,22 @@
             <el-icon><Money /></el-icon>
             <span>报销管理</span>
           </template>
-            <el-menu-item index="1-1">新增报销</el-menu-item>
+            <el-menu-item index="edit">新增报销</el-menu-item>
             <el-menu-item index="reimburse">报销记录</el-menu-item>
         </el-sub-menu>
 
-        <el-menu-item index="/profile">
-          <el-icon><User /></el-icon>
-          <template #title>个人中心</template>
-        </el-menu-item>
+<!--        <el-menu-item index="/profile">-->
+<!--          <el-icon><User /></el-icon>-->
+<!--          <template #title>个人中心</template>-->
+<!--        </el-menu-item>-->
+        <el-sub-menu index="2">
+          <template #title>
+            <el-icon><User /></el-icon>
+            <span>个人中心</span>
+          </template>
+          <el-menu-item index="profile">个人信息</el-menu-item>
+          <el-menu-item command="logout">退出登录</el-menu-item>
+        </el-sub-menu>
 
         <el-menu-item index="/stats">
           <el-icon><PieChart /></el-icon>
@@ -64,9 +72,10 @@
           </el-icon>
         </div>
         <div class="header-right">
+          <el-icon><Avatar /></el-icon>
           <el-dropdown @command="handleCommand">
             <span class="user-info">
-              {{ currentUser?.userName || '未登录' }}
+              {{ currentUser?.trueName || '未登录' }}
               <el-icon><CaretBottom /></el-icon>
             </span>
             <template #dropdown>
@@ -98,7 +107,8 @@ import {
   Expand, 
   Fold ,
   PieChart,
-  Notification
+  Notification,
+  Avatar
 } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 

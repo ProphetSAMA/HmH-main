@@ -1,14 +1,3 @@
-<!--<script setup>-->
-
-<!--</script>-->
-
-<!--<template>-->
-
-<!--</template>-->
-
-<!--<style scoped>-->
-
-<!--</style>-->
 <template>
   <el-container>
     <!-- 顶栏 -->
@@ -18,16 +7,22 @@
 
     <!-- 公告列表 -->
     <el-main>
+      <!-- 仅管理员显示发布新公告按钮 -->
+      <el-button v-if="currentUser.roleName === '管理员'" type="primary" @click="publishAnnouncement">发布新公告</el-button>
+
       <el-table
           :data="announcementList"
           style="width: 100%"
           stripe
           border
       >
-        <el-table-column label="公告标题" prop="title" width="300"></el-table-column>
-        <el-table-column label="发布时间" prop="date" width="200"></el-table-column>
-        <el-table-column label="操作" width="150">
+        <el-table-column label="公告标题" prop="title" width="800"></el-table-column>
+        <el-table-column label="发布时间" prop="date" width="600"></el-table-column>
+
+        <!-- 操作列 -->
+        <el-table-column label="操作" width="230">
           <template #default="{ row }">
+            <!-- 查看公告按钮 -->
             <el-button size="small" @click="viewAnnouncement(row)">查看</el-button>
           </template>
         </el-table-column>
@@ -38,8 +33,13 @@
 
 <script setup>
 import { ref } from 'vue'
-import { ElButton } from 'element-plus'
 
+// 当前用户信息（模拟）
+const currentUser = ref({
+  roleName: '管理员' // 根据实际的用户角色动态设置
+})
+
+// 示例公告数据
 const announcementList = ref([
   {
     title: '系统维护公告',
@@ -60,8 +60,14 @@ const announcementList = ref([
 
 // 查看公告的处理函数
 const viewAnnouncement = (announcement) => {
-  // 在这里你可以实现查看详细内容的功能
+  // 在这里弹出一个模态框显示公告的详细内容
   alert(`公告标题: ${announcement.title}\n公告内容: ${announcement.content}`)
+}
+
+// 发布新公告的处理函数
+const publishAnnouncement = () => {
+  // 在这里你可以弹出发布公告的表单或者执行发布逻辑
+  alert('发布新公告功能')
 }
 </script>
 
