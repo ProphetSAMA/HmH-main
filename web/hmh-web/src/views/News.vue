@@ -1,74 +1,289 @@
 <template>
   <el-container>
-    <!-- 顶栏 -->
     <el-header class="header">
       <h2>公告列表</h2>
     </el-header>
 
-    <!-- 公告列表 -->
     <el-main>
-      <!-- 仅管理员显示发布新公告按钮 -->
-      <el-button v-if="currentUser.roleName === '管理员'" type="primary" @click="publishAnnouncement">发布新公告</el-button>
+      <!-- 搜索栏 -->
+      <el-form :inline="true" :model="searchForm" class="search-form">
+        <el-form-item label="标题">
+          <el-input v-model="searchForm.title" placeholder="请输入标题关键词" clearable />
+        </el-form-item>
+        
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button @click="handleReset">重置</el-button>
+          <el-button 
+            v-if="currentUser.roleName === '管理员'" 
+            type="success" 
+            @click="handleAdd"
+          >发布新公告</el-button>
+        </el-form-item>
+      </el-form>
 
       <el-table
-          :data="announcementList"
-          style="width: 100%"
-          stripe
-          border
+        :data="announcementList"
+        style="width: 100%"
+        stripe
+        border
+        v-loading="loading"
       >
-        <el-table-column label="公告标题" prop="title" width="800"></el-table-column>
-        <el-table-column label="发布时间" prop="date" width="600"></el-table-column>
+        <el-table-column label="公告标题" prop="title" min-width="200"></el-table-column>
+        <el-table-column label="发布人" prop="createUserName" width="120"></el-table-column>
+        <el-table-column 
+          label="发布时间" 
+          prop="createTime" 
+          width="180"
+          :formatter="(row) => formatDateTime(row.createTime)"
+        ></el-table-column>
 
-        <!-- 操作列 -->
-        <el-table-column label="操作" width="230">
+        <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
-            <!-- 查看公告按钮 -->
             <el-button size="small" @click="viewAnnouncement(row)">查看</el-button>
+            <template v-if="currentUser.roleName === '管理员'">
+              <el-button 
+                size="small" 
+                type="primary" 
+                @click="handleEdit(row)"
+              >编辑</el-button>
+              <el-button 
+                size="small" 
+                type="danger" 
+                @click="handleDelete(row)"
+              >删除</el-button>
+            </template>
           </template>
         </el-table-column>
       </el-table>
+
+      <!-- 分页 -->
+      <el-pagination
+        v-model:current-page="currentPage"
+        v-model:page-size="pageSize"
+        :total="total"
+        @current-change="handlePageChange"
+        layout="total, prev, pager, next"
+        class="mt-4"
+      />
     </el-main>
+
+    <!-- 查看/编辑对话框 -->
+    <el-dialog
+      :title="dialogTitle"
+      v-model="dialogVisible"
+      width="600px"
+    >
+      <el-form 
+        v-if="isEdit" 
+        :model="form" 
+        :rules="rules" 
+        ref="formRef" 
+        label-width="100px"
+      >
+        <el-form-item label="公告标题" prop="title">
+          <el-input v-model="form.title" />
+        </el-form-item>
+        
+        <el-form-item label="公告内容" prop="content">
+          <el-input 
+            type="textarea" 
+            v-model="form.content" 
+            :rows="6"
+          />
+        </el-form-item>
+      </el-form>
+
+      <div v-else class="view-content">
+        <h3>{{ currentAnnouncement.title }}</h3>
+        <div class="announcement-info">
+          <span>发布人：{{ currentAnnouncement.createUserName }}</span>
+          <span>发布时间：{{ formatDateTime(currentAnnouncement.createTime) }}</span>
+        </div>
+        <div class="announcement-content">{{ currentAnnouncement.content }}</div>
+      </div>
+      
+      <template #footer>
+        <span class="dialog-footer">
+          <el-button @click="dialogVisible = false">关闭</el-button>
+          <el-button 
+            v-if="isEdit" 
+            type="primary" 
+            @click="handleSubmit"
+          >确定</el-button>
+        </span>
+      </template>
+    </el-dialog>
   </el-container>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { request } from '../utils/request'
 
-// 当前用户信息（模拟）
-const currentUser = ref({
-  roleName: '管理员' // 根据实际的用户角色动态设置
+const currentUser = ref(JSON.parse(localStorage.getItem('currentUser') || '{}'))
+const loading = ref(false)
+const currentPage = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+const announcementList = ref([])
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const isEdit = ref(false)
+const formRef = ref()
+const currentAnnouncement = ref({})
+
+const searchForm = reactive({
+  title: ''
 })
 
-// 示例公告数据
-const announcementList = ref([
-  {
-    title: '系统维护公告',
-    date: '2025-03-24',
-    content: '我们将在 2025年3月25日进行系统维护，预计停机1小时。'
-  },
-  {
-    title: '年度报告发布',
-    date: '2025-03-20',
-    content: '2025年年度报告已发布，请大家查看。'
-  },
-  {
-    title: '春节放假通知',
-    date: '2025-01-15',
-    content: '春节期间放假安排，具体日期为2025年2月1日至2025年2月10日。'
+const form = reactive({
+  id: null,
+  title: '',
+  content: ''
+})
+
+const rules = {
+  title: [
+    { required: true, message: '请输入公告标题', trigger: 'blur' },
+    { min: 2, max: 200, message: '长度在 2 到 200 个字符', trigger: 'blur' }
+  ],
+  content: [
+    { required: true, message: '请输入公告内容', trigger: 'blur' }
+  ]
+}
+
+// 获取公告列表
+const getList = async () => {
+  loading.value = true
+  try {
+    const params = new URLSearchParams({
+      page: currentPage.value,
+      rows: pageSize.value,
+      title: searchForm.title
+    })
+
+    const result = await request(`/api/announcement/list?${params.toString()}`)
+    console.log('获取到的公告列表数据:', result)
+    if (result?.data) {
+      announcementList.value = result.data.records
+      total.value = result.data.total
+      console.log('处理后的公告列表:', announcementList.value)
+    }
+  } catch (error) {
+    console.error('获取公告列表失败:', error)
+    ElMessage.error('获取公告列表失败')
+  } finally {
+    loading.value = false
   }
-])
-
-// 查看公告的处理函数
-const viewAnnouncement = (announcement) => {
-  // 在这里弹出一个模态框显示公告的详细内容
-  alert(`公告标题: ${announcement.title}\n公告内容: ${announcement.content}`)
 }
 
-// 发布新公告的处理函数
-const publishAnnouncement = () => {
-  // 在这里你可以弹出发布公告的表单或者执行发布逻辑
-  alert('发布新公告功能')
+// 查看公告
+const viewAnnouncement = (row) => {
+  currentAnnouncement.value = row
+  isEdit.value = false
+  dialogTitle.value = '查看公告'
+  dialogVisible.value = true
 }
+
+// 新增公告
+const handleAdd = () => {
+  form.id = null
+  form.title = ''
+  form.content = ''
+  isEdit.value = true
+  dialogTitle.value = '发布新公告'
+  dialogVisible.value = true
+}
+
+// 编辑公告
+const handleEdit = (row) => {
+  form.id = row.id
+  form.title = row.title
+  form.content = row.content
+  isEdit.value = true
+  dialogTitle.value = '编辑公告'
+  dialogVisible.value = true
+}
+
+// 删除公告
+const handleDelete = (row) => {
+  ElMessageBox.confirm('确定要删除该公告吗？', '提示', {
+    type: 'warning'
+  }).then(async () => {
+    try {
+      await request(`/api/announcement/${row.id}`, {
+        method: 'DELETE'
+      })
+      ElMessage.success('删除成功')
+      getList()
+    } catch (error) {
+      ElMessage.error('删除失败')
+    }
+  })
+}
+
+// 提交表单
+const handleSubmit = async () => {
+  if (!formRef.value) return
+  
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
+      try {
+        await request('/api/announcement/save', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(form)
+        })
+        
+        ElMessage.success('保存成功')
+        dialogVisible.value = false
+        getList()
+      } catch (error) {
+        ElMessage.error('保存失败')
+      }
+    }
+  })
+}
+
+// 搜索
+const handleSearch = () => {
+  currentPage.value = 1
+  getList()
+}
+
+// 重置
+const handleReset = () => {
+  searchForm.title = ''
+  currentPage.value = 1
+  getList()
+}
+
+// 页码变化
+const handlePageChange = () => {
+  getList()
+}
+
+// 格式化日期时间
+const formatDateTime = (date) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  })
+}
+
+onMounted(() => {
+  getList()
+})
 </script>
 
 <style scoped>
@@ -79,7 +294,35 @@ const publishAnnouncement = () => {
   text-align: center;
 }
 
+.search-form {
+  margin-bottom: 20px;
+}
+
 .el-table {
   margin-top: 20px;
+}
+
+.mt-4 {
+  margin-top: 16px;
+}
+
+.view-content {
+  padding: 20px;
+}
+
+.announcement-info {
+  color: #666;
+  margin: 10px 0;
+  font-size: 14px;
+}
+
+.announcement-info span {
+  margin-right: 20px;
+}
+
+.announcement-content {
+  margin-top: 20px;
+  line-height: 1.6;
+  white-space: pre-wrap;
 }
 </style>

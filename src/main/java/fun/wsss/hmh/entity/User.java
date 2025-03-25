@@ -15,7 +15,7 @@ import lombok.Setter;
 public class User {
 
     @TableId
-    private Integer id; // 编号
+    private Long id; // 编号
 
     @TableField("userName")
     private String userName; // 用户名
@@ -36,10 +36,10 @@ public class User {
     private String roleName; // 角色名称 系统管理员 经理 员工
 
     public Integer getId() {
-        return id;
+        return Math.toIntExact(id);
     }
 
-    public void setId(Integer id) {
+    public void setId(Long id) {
         this.id = id;
     }
 
