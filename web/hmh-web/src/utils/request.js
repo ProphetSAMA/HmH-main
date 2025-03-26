@@ -32,31 +32,30 @@ export const request = async (url, options = {}) => {
     console.log('Response status:', response.status)
     console.log('Response headers:', Object.fromEntries(response.headers.entries()))
 
-    // 尝试解析响应
-    const data = await response.json()
-    console.log('Response data:', data)
-
-    // 处理 401 错误
-    if (response.status === 401) {
-      console.log('Received 401 status, data:', data)
-      localStorage.removeItem('token')
-      localStorage.removeItem('currentUser')
-      ElMessage.error('登录已过期，请重新登录')
-      router.push('/login')
-      return null
-    }
-
-    // 处理其他错误
-    if (!response.ok) {
-      console.error('Response not ok:', response.status, data)
-      ElMessage.error(data.message || '请求失败')
-      return null
-    }
-
-    return data
+    return await responseInterceptor(response)
   } catch (error) {
     console.error('Request error:', error)
-    ElMessage.error('网络请求失败')
-    return null
+    // 抛出错误，让调用方处理具体的错误信息
+    throw error
   }
+}
+
+// 响应拦截器
+const responseInterceptor = async (response) => {
+  const data = await response.json()
+  
+  // 处理 401 错误
+  if (response.status === 401) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('currentUser')
+    router.push('/login')
+    throw new Error(data.message)
+  }
+
+  // 处理业务错误
+  if (!data.success) {
+    throw new Error(data.message || '请求失败')
+  }
+
+  return data
 } 

@@ -56,37 +56,36 @@
   }
   
   const handleLogin = async () => {
-    try {
-      const result = await request('/api/user/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(loginForm)
-      })
+    if (!loginFormRef.value) return
+    
+    await loginFormRef.value.validate(async (valid) => {
+      if (valid) {
+        try {
+          const response = await request('/api/user/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(loginForm)
+          })
 
-      if (!result) return
-      
-      if (!result.success) {
-        ElMessage.error(result.message || '登录失败')
-        return
+          // 登录成功
+          localStorage.setItem('token', response.token)
+          localStorage.setItem('currentUser', JSON.stringify({
+            id: response.userId,
+            userName: response.userName,
+            trueName: response.trueName,
+            roleName: response.roleName
+          }))
+          router.push('/')
+          ElMessage.success('登录成功')
+          
+        } catch (error) {
+          // 显示具体的错误信息
+          ElMessage.error(error.message)
+        }
       }
-
-      // 保存 token 和用户信息
-      localStorage.setItem('token', result.token)
-      localStorage.setItem('currentUser', JSON.stringify({
-        id: result.userId,
-        userName: result.userName,
-        trueName: result.trueName,
-        roleName: result.roleName
-      }))
-      
-      ElMessage.success('登录成功')
-      router.push('/')
-    } catch (error) {
-      console.error('Login error:', error)
-      ElMessage.error('登录请求失败')
-    }
+    })
   }
   </script>
   
